@@ -1,0 +1,40 @@
+{
+  "regions": [
+    {
+      "id": "meadow",
+      "default_music_state": "explore",
+      "ambient_layers": ["wind", "birds"],
+      "x": 0,
+      "y": 0,
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "ruins",
+      "default_music_state": "mysterious",
+      "ambient_layers": ["wind", "metal_creak"],
+      "x": 300,
+      "y": 0,
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "lakeside",
+      "default_music_state": "calm",
+      "ambient_layers": ["water", "insects"],
+      "x": 0,
+      "y": 300,
+      "width": 256,
+      "height": 256
+    },
+    {
+      "id": "station",
+      "default_music_state": "mysterious",
+      "ambient_layers": ["rumble", "speaker_static"],
+      "x": 300,
+      "y": 300,
+      "width": 256,
+      "height": 256
+    }
+  ]
+}

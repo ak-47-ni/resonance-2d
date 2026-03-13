@@ -1,0 +1,19 @@
+{
+  "music_states": [
+    {
+      "id": "explore",
+      "bgm_track": "audio/bgm/explore.ogg",
+      "ambient_layers": ["wind"]
+    },
+    {
+      "id": "mysterious",
+      "bgm_track": "audio/bgm/mysterious.ogg",
+      "ambient_layers": ["rumble"]
+    },
+    {
+      "id": "calm",
+      "bgm_track": "audio/bgm/calm.ogg",
+      "ambient_layers": ["water"]
+    }
+  ]
+}

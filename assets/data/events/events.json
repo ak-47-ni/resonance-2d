@@ -1,0 +1,40 @@
+{
+  "events": [
+    {
+      "id": "distant_bell",
+      "region_id": "meadow",
+      "requested_music_state": "mysterious",
+      "weight": 5
+    },
+    {
+      "id": "old_broadcast_echo",
+      "region_id": "ruins",
+      "requested_music_state": "mysterious",
+      "weight": 10
+    },
+    {
+      "id": "shoreline_memory",
+      "region_id": "lakeside",
+      "requested_music_state": "calm",
+      "weight": 7
+    },
+    {
+      "id": "passing_shadow",
+      "region_id": "meadow",
+      "requested_music_state": "explore",
+      "weight": 4
+    },
+    {
+      "id": "cold_gust",
+      "region_id": "ruins",
+      "requested_music_state": "mysterious",
+      "weight": 6
+    },
+    {
+      "id": "echoing_announcement",
+      "region_id": "station",
+      "requested_music_state": "mysterious",
+      "weight": 8
+    }
+  ]
+}

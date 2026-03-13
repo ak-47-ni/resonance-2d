@@ -1,0 +1,7 @@
+/build/
+/.worktrees/
+/worktrees/
+/.DS_Store
+*.swp
+*.swo
+*.tmp
