@@ -46,20 +46,43 @@ def require_wav_audio_assets(music_states: list[dict], assets_root: Path) -> Non
                 raise SystemExit(f"Missing ambient asset: {ambient_path}")
 
 
+def require_positive_radius(anchor: dict) -> None:
+    if "activation_radius" not in anchor or not isinstance(anchor["activation_radius"], (int, float)):
+        raise SystemExit(f"Story anchor '{anchor.get('id', '<unknown>')}' is missing numeric field 'activation_radius'")
+    if anchor["activation_radius"] <= 0:
+        raise SystemExit(f"Story anchor '{anchor['id']}' must have positive activation_radius")
+
+
+def require_non_empty_string(item: dict, item_type: str, key: str) -> None:
+    value = item.get(key)
+    if not isinstance(value, str) or not value.strip():
+        raise SystemExit(f"{item_type} '{item.get('id', '<unknown>')}' must define non-empty '{key}'")
+
+
+def require_string_array(item: dict, item_type: str, key: str) -> None:
+    value = item.get(key)
+    if value is None:
+        return
+    if not isinstance(value, list) or any((not isinstance(entry, str) or not entry.strip()) for entry in value):
+        raise SystemExit(f"{item_type} '{item.get('id', '<unknown>')}' must define '{key}' as a non-empty string array")
+
+
 def main(argv: list[str]) -> int:
     root = resolve_data_root(argv)
     assets_root = root.parent
     regions_path = root / "regions" / "regions.json"
     music_path = root / "music" / "music_states.json"
     events_path = root / "events" / "events.json"
+    story_path = root / "story" / "story_anchors.json"
 
-    for path in (regions_path, music_path, events_path):
+    for path in (regions_path, music_path, events_path, story_path):
         if not path.exists():
             raise SystemExit(f"Missing asset data file: {path}")
 
     regions = load_json(regions_path)["regions"]
     music_states = load_json(music_path)["music_states"]
     events = load_json(events_path)["events"]
+    story_anchors = load_json(story_path)["story_anchors"]
 
     region_ids = {item["id"] for item in regions}
     music_state_ids = {item["id"] for item in music_states}
@@ -79,6 +102,17 @@ def main(argv: list[str]) -> int:
         if event["requested_music_state"] not in music_state_ids:
             raise SystemExit(
                 f"Event '{event['id']}' references missing music state '{event['requested_music_state']}'"
+            )
+        require_string_array(event, "Event", "required_world_tags")
+
+    for anchor in story_anchors:
+        require_non_empty_string(anchor, "Story anchor", "region_id")
+        require_non_empty_string(anchor, "Story anchor", "prompt_text")
+        require_non_empty_string(anchor, "Story anchor", "story_text")
+        require_positive_radius(anchor)
+        if anchor["region_id"] not in region_ids:
+            raise SystemExit(
+                f"Story anchor '{anchor['id']}' references missing region '{anchor['region_id']}'"
             )
 
     require_wav_audio_assets(music_states, assets_root)

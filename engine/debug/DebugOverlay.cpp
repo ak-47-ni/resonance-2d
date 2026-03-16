@@ -1,6 +1,7 @@
 #include "engine/debug/DebugOverlay.h"
 
 #include <algorithm>
+#include <string>
 
 namespace resonance {
 namespace {
@@ -17,12 +18,48 @@ std::vector<std::string> DebugOverlay::build_lines(
     const std::string& music_state,
     const TraceLog& trace_log
 ) const {
+    return build_lines(region_id, music_state, {}, {}, {}, trace_log);
+}
+
+std::vector<std::string> DebugOverlay::build_lines(
+    const std::string& region_id,
+    const std::string& music_state,
+    const std::string& event_id,
+    const std::string& action_prompt,
+    const std::string& story_text,
+    const TraceLog& trace_log
+) const {
     std::vector<std::string> lines;
     lines.push_back("Region: " + region_id);
     lines.push_back("Music: " + music_state);
 
+    if (!event_id.empty()) {
+        lines.push_back("Event: " + event_id);
+    }
+    if (!action_prompt.empty()) {
+        lines.push_back("Action: " + action_prompt);
+    }
+    if (!story_text.empty()) {
+        lines.push_back("Story: " + story_text);
+    }
+
     for (const auto& entry : trace_log.entries()) {
         lines.push_back("Trace: " + entry);
+    }
+
+    return lines;
+}
+
+std::vector<std::string> DebugOverlay::build_journal_lines(
+    const std::vector<MemoryJournalEntry>& entries
+) const {
+    std::vector<std::string> lines;
+    lines.push_back("Journal");
+    lines.push_back("Entries: " + std::to_string(entries.size()));
+
+    for (const auto& entry : entries) {
+        lines.push_back("Entry: " + entry.id);
+        lines.push_back("Memory: " + entry.story_text);
     }
 
     return lines;

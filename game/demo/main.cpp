@@ -20,6 +20,24 @@ SDL_FRect to_rect(const resonance::RegionBounds& bounds) {
     return SDL_FRect{bounds.x, bounds.y, bounds.width, bounds.height};
 }
 
+void draw_story_anchor_markers(SDL_Renderer* renderer, const resonance::DemoScene& scene) {
+    for (const auto& visual : scene.story_anchor_visuals()) {
+        SDL_FRect outer{visual.position.x - 4.0F, visual.position.y - 4.0F, 8.0F, 8.0F};
+        if (visual.is_nearby) {
+            SDL_SetRenderDrawColor(renderer, 255, 208, 120, 255);
+        } else {
+            SDL_SetRenderDrawColor(renderer, 80, 200, 220, 220);
+        }
+        SDL_RenderFillRect(renderer, &outer);
+
+        if (visual.is_active) {
+            SDL_FRect inner{visual.position.x - 2.0F, visual.position.y - 2.0F, 4.0F, 4.0F};
+            SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+            SDL_RenderFillRect(renderer, &inner);
+        }
+    }
+}
+
 void draw_overlay(SDL_Renderer* renderer, const resonance::DemoScene& scene) {
     resonance::DebugOverlay overlay;
     const auto lines = scene.overlay_lines();
@@ -60,6 +78,8 @@ void draw_scene(SDL_Renderer* renderer, const resonance::DemoScene& scene) {
             SDL_RenderRect(renderer, &rect);
         }
     }
+
+    draw_story_anchor_markers(renderer, scene);
 
     const auto player = scene.player_position();
     SDL_FRect player_rect{player.x - 6.0F, player.y - 6.0F, 12.0F, 12.0F};
@@ -119,42 +139,48 @@ int main() {
         bool running = true;
         int frames = 0;
         while (running) {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT) {
-                running = false;
-            } else if (event.type == SDL_EVENT_KEY_DOWN) {
-                switch (event.key.key) {
-                    case SDLK_ESCAPE:
-                        running = false;
-                        break;
-                    case SDLK_LEFT:
-                    case SDLK_A:
-                        scene.move_player({-12.0F, 0.0F});
-                        break;
-                    case SDLK_RIGHT:
-                    case SDLK_D:
-                        scene.move_player({12.0F, 0.0F});
-                        break;
-                    case SDLK_UP:
-                    case SDLK_W:
-                        scene.move_player({0.0F, -12.0F});
-                        break;
-                    case SDLK_DOWN:
-                    case SDLK_S:
-                        scene.move_player({0.0F, 12.0F});
-                        break;
-                    default:
-                        break;
+            SDL_Event event;
+            while (SDL_PollEvent(&event)) {
+                if (event.type == SDL_EVENT_QUIT) {
+                    running = false;
+                } else if (event.type == SDL_EVENT_KEY_DOWN) {
+                    switch (event.key.key) {
+                        case SDLK_ESCAPE:
+                            running = false;
+                            break;
+                        case SDLK_LEFT:
+                        case SDLK_A:
+                            scene.move_player({-12.0F, 0.0F});
+                            break;
+                        case SDLK_RIGHT:
+                        case SDLK_D:
+                            scene.move_player({12.0F, 0.0F});
+                            break;
+                        case SDLK_UP:
+                        case SDLK_W:
+                            scene.move_player({0.0F, -12.0F});
+                            break;
+                        case SDLK_DOWN:
+                        case SDLK_S:
+                            scene.move_player({0.0F, 12.0F});
+                            break;
+                        case SDLK_E:
+                            scene.interact();
+                            break;
+                        case SDLK_J:
+                            scene.toggle_journal();
+                            break;
+                        default:
+                            break;
+                    }
                 }
             }
-        }
 
-        scene.update();
-        SDL_SetWindowTitle(window, scene.debug_summary().c_str());
-        draw_scene(renderer, scene);
-        app.advance_frame(0.016);
-        SDL_Delay(16);
+            scene.update();
+            SDL_SetWindowTitle(window, scene.debug_summary().c_str());
+            draw_scene(renderer, scene);
+            app.advance_frame(0.016);
+            SDL_Delay(16);
 
             ++frames;
             if (auto_close && frames >= 4) {
