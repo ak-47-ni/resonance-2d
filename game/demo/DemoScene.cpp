@@ -7,6 +7,7 @@ namespace resonance {
 
 DemoScene::DemoScene(DemoContentBundle bundle)
     : world_(bundle.regions), event_director_(std::move(bundle.events)) {
+    audio_director_.register_music_states(bundle.music_states);
     for (const auto& region : bundle.regions) {
         audio_director_.set_region_music(region.id, region.default_music_state);
     }

@@ -1,7 +1,9 @@
 #pragma once
 
 #include "engine/audio/AudioBackend.h"
+#include "engine/audio/MusicStateData.h"
 
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -15,6 +17,10 @@ public:
     AudioDirector();
     explicit AudioDirector(std::unique_ptr<AudioBackend> backend);
 
+    void register_music_states(
+        const std::vector<MusicStateData>& music_states,
+        const std::filesystem::path& asset_root = "assets"
+    );
     void set_region_music(const std::string& region_id, const std::string& music_state);
     void enter_region(const std::string& region_id);
     void request_story_cue(const std::string& music_state);
@@ -27,7 +33,9 @@ private:
     void refresh_snapshot();
 
     std::unique_ptr<AudioBackend> backend_;
+    std::filesystem::path asset_root_{"assets"};
     std::unordered_map<std::string, std::string> region_music_;
+    std::unordered_map<std::string, MusicStateData> music_states_;
     std::unordered_set<std::string> known_music_states_;
     std::string current_region_id_;
     std::string region_music_state_;
