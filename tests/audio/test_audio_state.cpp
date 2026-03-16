@@ -1,6 +1,7 @@
 #include "engine/audio/AudioDirector.h"
 #include "engine/audio/MusicStateData.h"
 
+#include <cmath>
 #include <memory>
 #include <string>
 #include <utility>
@@ -22,6 +23,10 @@ public:
 }  // namespace
 
 int main() {
+    auto approx_equal = [](float lhs, float rhs) {
+        return std::fabs(lhs - rhs) < 0.0001F;
+    };
+
     auto backend = std::make_unique<CaptureBackend>();
     auto* capture = backend.get();
     resonance::AudioDirector audio(std::move(backend));
@@ -38,10 +43,21 @@ int main() {
     audio.enter_region("meadow");
     const auto initial = capture->last_snapshot;
 
+    audio.set_story_focus(0.5F);
+    const auto focused = capture->last_snapshot;
+
+    audio.set_event_emphasis(1.0F);
+    const auto emphasized = capture->last_snapshot;
+
+    audio.set_event_mix(0.5F, 0.25F);
+    const auto authored = capture->last_snapshot;
+
     audio.request_story_cue("mysterious");
     const auto overridden = capture->last_snapshot;
 
     audio.clear_story_cue();
+    audio.set_story_focus(0.0F);
+    audio.set_event_emphasis(0.0F);
     audio.enter_region("ruin");
     const auto missing_asset = capture->last_snapshot;
 
@@ -54,15 +70,48 @@ int main() {
     const bool initial_ok = initial.music_state == "explore" &&
         initial.resolved_bgm_track == "assets/audio/bgm/explore.wav" &&
         initial.fallback_music_state == "explore" &&
+        approx_equal(initial.story_focus, 0.0F) &&
+        approx_equal(initial.event_emphasis, 0.0F) &&
+        approx_equal(initial.bgm_gain, 1.0F) &&
+        approx_equal(initial.ambient_gain_multiplier, 1.0F) &&
         initial.ambient_layers == std::vector<std::string>{"wind", "water"} &&
         initial.resolved_ambient_tracks == std::vector<std::string>{
             "assets/audio/ambient/wind.wav",
             "assets/audio/ambient/water.wav",
         };
 
+    const bool focused_ok = approx_equal(focused.story_focus, 0.5F) &&
+        approx_equal(focused.event_emphasis, 0.0F) &&
+        approx_equal(focused.bgm_gain, 0.9F) &&
+        approx_equal(focused.ambient_gain_multiplier, 1.3F) &&
+        focused.music_state == "explore" &&
+        focused.resolved_bgm_track == "assets/audio/bgm/explore.wav" &&
+        focused.resolved_ambient_tracks == std::vector<std::string>{
+            "assets/audio/ambient/wind.wav",
+            "assets/audio/ambient/water.wav",
+        };
+
+    const bool emphasized_ok = emphasized.music_state == "explore" &&
+        approx_equal(emphasized.story_focus, 0.5F) &&
+        approx_equal(emphasized.event_emphasis, 1.0F) &&
+        approx_equal(emphasized.bgm_gain, 0.78F) &&
+        approx_equal(emphasized.ambient_gain_multiplier, 1.7F) &&
+        emphasized.resolved_bgm_track == "assets/audio/bgm/explore.wav";
+
+    const bool authored_ok = authored.music_state == "explore" &&
+        approx_equal(authored.story_focus, 0.5F) &&
+        approx_equal(authored.event_emphasis, 1.0F) &&
+        approx_equal(authored.bgm_gain, 0.84F) &&
+        approx_equal(authored.ambient_gain_multiplier, 1.4F) &&
+        authored.resolved_bgm_track == "assets/audio/bgm/explore.wav";
+
     const bool overridden_ok = overridden.music_state == "mysterious" &&
         overridden.resolved_bgm_track == "assets/audio/bgm/mysterious.wav" &&
         overridden.fallback_music_state == "mysterious" &&
+        approx_equal(overridden.story_focus, 0.5F) &&
+        approx_equal(overridden.event_emphasis, 1.0F) &&
+        approx_equal(overridden.bgm_gain, 0.84F) &&
+        approx_equal(overridden.ambient_gain_multiplier, 1.4F) &&
         overridden.ambient_layers == std::vector<std::string>{"rumble"} &&
         overridden.resolved_ambient_tracks == std::vector<std::string>{
             "assets/audio/ambient/rumble.wav",
@@ -87,5 +136,5 @@ int main() {
         after_invalid_cue.fallback_music_state.empty() &&
         after_invalid_cue.resolved_ambient_tracks.empty();
 
-    return (initial_ok && overridden_ok && missing_ok && unknown_ok && invalid_cue_ok) ? 0 : 1;
+    return (initial_ok && focused_ok && emphasized_ok && authored_ok && overridden_ok && missing_ok && unknown_ok && invalid_cue_ok) ? 0 : 1;
 }

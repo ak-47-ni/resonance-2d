@@ -67,6 +67,20 @@ def require_string_array(item: dict, item_type: str, key: str) -> None:
         raise SystemExit(f"{item_type} '{item.get('id', '<unknown>')}' must define '{key}' as a non-empty string array")
 
 
+def require_unit_float_mapping(item: dict, item_type: str, key: str, required_keys: list[str]) -> None:
+    value = item.get(key)
+    if value is None:
+        return
+    if not isinstance(value, dict):
+        raise SystemExit(f"{item_type} '{item.get('id', '<unknown>')}' must define '{key}' as an object")
+    for child_key in required_keys:
+        child_value = value.get(child_key)
+        if not isinstance(child_value, (int, float)):
+            raise SystemExit(f"{item_type} '{item.get('id', '<unknown>')}' must define numeric '{key}.{child_key}'")
+        if child_value < 0.0 or child_value > 1.0:
+            raise SystemExit(f"{item_type} '{item.get('id', '<unknown>')}' must keep '{key}.{child_key}' within [0.0, 1.0]")
+
+
 def main(argv: list[str]) -> int:
     root = resolve_data_root(argv)
     assets_root = root.parent
@@ -104,6 +118,7 @@ def main(argv: list[str]) -> int:
                 f"Event '{event['id']}' references missing music state '{event['requested_music_state']}'"
             )
         require_string_array(event, "Event", "required_world_tags")
+        require_unit_float_mapping(event, "Event", "mix_profile", ["event_duck", "ambient_boost"])
 
     for anchor in story_anchors:
         require_non_empty_string(anchor, "Story anchor", "region_id")

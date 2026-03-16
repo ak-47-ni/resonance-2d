@@ -179,6 +179,22 @@ add_executable(story_anchor_visuals_test
 target_link_libraries(story_anchor_visuals_test PRIVATE resonance_engine)
 resonance_set_warnings(story_anchor_visuals_test)
 
+add_executable(story_anchor_audio_focus_test
+    tests/demo/test_story_anchor_audio_focus.cpp
+    game/demo/DemoScene.cpp
+)
+
+target_link_libraries(story_anchor_audio_focus_test PRIVATE resonance_engine)
+resonance_set_warnings(story_anchor_audio_focus_test)
+
+add_executable(event_audio_emphasis_test
+    tests/demo/test_event_audio_emphasis.cpp
+    game/demo/DemoScene.cpp
+)
+
+target_link_libraries(event_audio_emphasis_test PRIVATE resonance_engine)
+resonance_set_warnings(event_audio_emphasis_test)
+
 add_executable(memory_journal_test
     tests/demo/test_memory_journal.cpp
     game/demo/DemoScene.cpp
@@ -246,6 +262,8 @@ if(BUILD_TESTING)
     add_test(NAME demo_visual_state COMMAND demo_visual_state_test)
     add_test(NAME story_anchor_interaction COMMAND story_anchor_interaction_test)
     add_test(NAME story_anchor_visuals COMMAND story_anchor_visuals_test)
+    add_test(NAME story_anchor_audio_focus COMMAND story_anchor_audio_focus_test)
+    add_test(NAME event_audio_emphasis COMMAND event_audio_emphasis_test)
     add_test(NAME memory_journal COMMAND memory_journal_test)
     add_test(NAME journal_overlay COMMAND journal_overlay_test)
     add_test(NAME memory_unlock_event COMMAND memory_unlock_event_test)
@@ -266,6 +284,8 @@ if(BUILD_TESTING)
     set_tests_properties(demo_visual_state PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(story_anchor_interaction PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(story_anchor_visuals PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(story_anchor_audio_focus PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(event_audio_emphasis PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(memory_journal PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(journal_overlay PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(memory_unlock_event PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})

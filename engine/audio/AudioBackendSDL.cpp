@@ -22,6 +22,7 @@ namespace {
 
 constexpr float kBgmGain = 0.82F;
 constexpr std::array<float, 2> kAmbientGains{0.18F, 0.12F};
+constexpr float kGainSmoothing = 0.22F;
 
 class AudioBackendSDL final : public AudioBackend {
 public:
@@ -48,6 +49,15 @@ public:
     }
 
 private:
+    static float smooth_gain(float current, float target) {
+        return current + ((target - current) * kGainSmoothing);
+    }
+
+    void update_live_gains_locked() {
+        live_bgm_gain_ = smooth_gain(live_bgm_gain_, last_snapshot_.bgm_gain);
+        live_ambient_gain_multiplier_ = smooth_gain(live_ambient_gain_multiplier_, last_snapshot_.ambient_gain_multiplier);
+    }
+
     void load_primary_asset_if_needed_locked() {
         if (loaded_track_ == last_snapshot_.resolved_bgm_track) {
             return;
@@ -123,7 +133,8 @@ private:
     }
 
     void fill_tone_samples_locked(std::vector<float>& samples, int sample_count) {
-        if (profile_.master_gain <= 0.0F) {
+        const float bgm_gain = live_bgm_gain_;
+        if (profile_.master_gain <= 0.0F || bgm_gain <= 0.0F) {
             return;
         }
 
@@ -131,8 +142,8 @@ private:
         constexpr float sample_rate = 48000.0F;
 
         for (int index = 0; index < sample_count; ++index) {
-            const float carrier = std::sinf(carrier_phase_) * profile_.master_gain;
-            const float layer = std::sinf(layer_phase_) * profile_.layer_gain;
+            const float carrier = std::sinf(carrier_phase_) * profile_.master_gain * bgm_gain;
+            const float layer = std::sinf(layer_phase_) * profile_.layer_gain * bgm_gain;
             const float value = carrier + layer;
             const std::size_t sample_index = static_cast<std::size_t>(index) * 2U;
             samples[sample_index] = value;
@@ -150,8 +161,10 @@ private:
     }
 
     void mix_primary_and_ambient_locked(std::vector<float>& samples, int sample_count) {
+        update_live_gains_locked();
+
         if (loaded_asset_.has_value() && !loaded_asset_->samples.empty()) {
-            mix_looping_audio_asset(*loaded_asset_, asset_cursor_, kBgmGain, samples);
+            mix_looping_audio_asset(*loaded_asset_, asset_cursor_, kBgmGain * live_bgm_gain_, samples);
         } else {
             fill_tone_samples_locked(samples, sample_count);
         }
@@ -161,7 +174,12 @@ private:
             if (!ambient_asset.has_value() || ambient_asset->samples.empty()) {
                 continue;
             }
-            mix_looping_audio_asset(*ambient_asset, ambient_cursors_[index], kAmbientGains[index], samples);
+            mix_looping_audio_asset(
+                *ambient_asset,
+                ambient_cursors_[index],
+                kAmbientGains[index] * live_ambient_gain_multiplier_,
+                samples
+            );
         }
 
         for (auto& sample : samples) {
@@ -195,6 +213,8 @@ private:
     std::vector<std::string> loaded_ambient_tracks_;
     std::vector<std::optional<WavAudioAsset>> ambient_assets_;
     std::vector<std::size_t> ambient_cursors_;
+    float live_bgm_gain_ = 1.0F;
+    float live_ambient_gain_multiplier_ = 1.0F;
 #if RESONANCE_HAS_SDL
     SDL_AudioStream* stream_ = nullptr;
     bool stream_failed_ = false;

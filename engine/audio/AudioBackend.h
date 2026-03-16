@@ -12,6 +12,10 @@ struct AudioStateSnapshot {
     std::string fallback_music_state;
     std::vector<std::string> ambient_layers;
     std::vector<std::string> resolved_ambient_tracks;
+    float story_focus = 0.0F;
+    float event_emphasis = 0.0F;
+    float bgm_gain = 1.0F;
+    float ambient_gain_multiplier = 1.0F;
 };
 
 class AudioBackend {

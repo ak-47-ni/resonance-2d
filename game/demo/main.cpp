@@ -1,11 +1,13 @@
 #include "engine/core/Application.h"
 #include "engine/debug/DebugOverlay.h"
 #include "engine/event/EventData.h"
+#include "game/demo/DebugRoute.h"
 #include "game/demo/DemoScene.h"
 
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #if RESONANCE_HAS_SDL
@@ -96,12 +98,29 @@ int main() {
     resonance::Application app;
     const auto bundle = resonance::load_demo_content("assets/data");
 #if !RESONANCE_HAS_SDL
+    if (const char* route = std::getenv("RESONANCE_DEMO_ROUTE"); route != nullptr && std::string_view{route} == "memory_chain") {
+        const auto summaries = resonance::run_memory_chain_debug_route(bundle);
+        for (const auto& summary : summaries) {
+            std::cout << summary << '\n';
+        }
+        return (!summaries.empty() && app.is_headless_ready()) ? 0 : 1;
+    }
+
     resonance::DemoScene scene(bundle);
     scene.set_player_position({10.0F, 10.0F});
     scene.update();
     std::cout << scene.debug_summary() << '\n';
     return (!scene.overlay_lines().empty() && app.is_headless_ready()) ? 0 : 1;
 #else
+    const bool hidden = std::getenv("RESONANCE_DEMO_HIDDEN") != nullptr;
+    if (const char* route = std::getenv("RESONANCE_DEMO_ROUTE"); hidden && route != nullptr && std::string_view{route} == "memory_chain") {
+        const auto summaries = resonance::run_memory_chain_debug_route(bundle);
+        for (const auto& summary : summaries) {
+            std::cout << summary << '\n';
+        }
+        return (!summaries.empty() && app.is_headless_ready()) ? 0 : 1;
+    }
+
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS)) {
         std::cerr << "SDL_Init failed: " << SDL_GetError() << '\n';
         return 1;
@@ -111,7 +130,6 @@ int main() {
         std::cerr << "SDL audio unavailable: " << SDL_GetError() << '\n';
     }
 
-    const bool hidden = std::getenv("RESONANCE_DEMO_HIDDEN") != nullptr;
     const bool auto_close = std::getenv("RESONANCE_DEMO_AUTOCLOSE") != nullptr;
     SDL_WindowFlags window_flags = hidden ? SDL_WINDOW_HIDDEN : 0;
 

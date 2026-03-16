@@ -10,12 +10,18 @@
 
 namespace resonance {
 
+struct EventMixProfile {
+    float event_duck = 1.0F;
+    float ambient_boost = 1.0F;
+};
+
 struct EventData {
     std::string id;
     std::string region_id;
     std::string requested_music_state;
     int weight = 0;
     std::vector<std::string> required_world_tags;
+    EventMixProfile mix_profile;
 };
 
 struct DemoContentBundle {
