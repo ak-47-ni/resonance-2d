@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 import json
 import subprocess
 import sys
@@ -65,9 +66,23 @@ def build_tree(root: Path, *, bgm_track: str, ambient_layers: list[str]) -> None
             ]
         },
     )
+    write_json(
+        data_root / "story" / "story_anchors.json",
+        {
+            "story_anchors": [
+                {
+                    "id": "meadow-memory",
+                    "region_id": "meadow",
+                    "prompt_text": "Listen closely",
+                    "story_text": "The meadow hums with distant echoes.",
+                    "activation_radius": 12,
+                }
+            ]
+        },
+    )
 
 
-def run_validator(asset_data_root: Path) -> subprocess.CompletedProcess[str]:
+def run_validator(asset_data_root: Path) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(SCRIPT), str(asset_data_root)],
         check=False,

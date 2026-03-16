@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from __future__ import annotations
 import subprocess
 import sys
 import tempfile
@@ -21,7 +22,7 @@ EXPECTED_AMBIENT = {
 }
 
 
-def run_generator(output_root: Path, group: str) -> subprocess.CompletedProcess[str]:
+def run_generator(output_root: Path, group: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         [sys.executable, str(SCRIPT), "--output-root", str(output_root), "--group", group],
         check=False,
