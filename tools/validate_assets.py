@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import sys
 from pathlib import Path
 
 
@@ -16,8 +17,38 @@ def require_positive_bounds(region: dict) -> None:
         raise SystemExit(f"Region '{region['id']}' must have positive width and height")
 
 
-def main() -> int:
-    root = Path(__file__).resolve().parent.parent / "assets" / "data"
+def resolve_data_root(argv: list[str]) -> Path:
+    if len(argv) > 1:
+        return Path(argv[1]).resolve()
+    return (Path(__file__).resolve().parent.parent / "assets" / "data").resolve()
+
+
+def require_wav_audio_assets(music_states: list[dict], assets_root: Path) -> None:
+    for music_state in music_states:
+        music_state_id = music_state.get("id", "<unknown>")
+        bgm_track = music_state.get("bgm_track")
+        if not isinstance(bgm_track, str) or not bgm_track:
+            raise SystemExit(f"Music state '{music_state_id}' is missing string field 'bgm_track'")
+        if Path(bgm_track).suffix.lower() != ".wav":
+            raise SystemExit(f"Music state '{music_state_id}' must reference a .wav bgm_track")
+        resolved_path = assets_root / bgm_track
+        if not resolved_path.exists():
+            raise SystemExit(f"Missing audio asset: {resolved_path}")
+
+        ambient_layers = music_state.get("ambient_layers", [])
+        if not isinstance(ambient_layers, list):
+            raise SystemExit(f"Music state '{music_state_id}' must define ambient_layers as an array")
+        for ambient_layer in ambient_layers:
+            if not isinstance(ambient_layer, str) or not ambient_layer:
+                raise SystemExit(f"Music state '{music_state_id}' contains an invalid ambient layer id")
+            ambient_path = assets_root / "audio" / "ambient" / f"{ambient_layer}.wav"
+            if not ambient_path.exists():
+                raise SystemExit(f"Missing ambient asset: {ambient_path}")
+
+
+def main(argv: list[str]) -> int:
+    root = resolve_data_root(argv)
+    assets_root = root.parent
     regions_path = root / "regions" / "regions.json"
     music_path = root / "music" / "music_states.json"
     events_path = root / "events" / "events.json"
@@ -50,9 +81,11 @@ def main() -> int:
                 f"Event '{event['id']}' references missing music state '{event['requested_music_state']}'"
             )
 
+    require_wav_audio_assets(music_states, assets_root)
+
     print("Asset validation passed")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(main(sys.argv))

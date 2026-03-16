@@ -34,6 +34,7 @@ add_library(resonance_engine
     engine/audio/MusicStateData.cpp
     engine/audio/AudioToneProfile.cpp
     engine/audio/AudioDirector.cpp
+    engine/audio/WavAudioAsset.cpp
     engine/audio/AudioBackendSDL.cpp
     engine/event/EventData.cpp
     engine/event/EventDirector.cpp
@@ -97,6 +98,15 @@ add_executable(audio_tone_profile_test
     tests/audio/test_audio_tone_profile.cpp
 )
 
+if(RESONANCE_SDL_TARGET)
+add_executable(wav_audio_asset_test
+    tests/audio/test_wav_audio_asset.cpp
+)
+
+target_link_libraries(wav_audio_asset_test PRIVATE resonance_engine)
+resonance_set_warnings(wav_audio_asset_test)
+endif()
+
 target_link_libraries(audio_tone_profile_test PRIVATE resonance_engine)
 resonance_set_warnings(audio_tone_profile_test)
 
@@ -150,6 +160,11 @@ if(BUILD_TESTING)
     add_test(NAME region_switch COMMAND region_switch_test)
     add_test(NAME audio_state COMMAND audio_state_test)
     add_test(NAME audio_tone_profile COMMAND audio_tone_profile_test)
+    add_test(NAME audio_asset_generator COMMAND python3 tests/audio/test_generate_audio_assets.py)
+    if(RESONANCE_SDL_TARGET)
+        add_test(NAME wav_audio_asset COMMAND wav_audio_asset_test)
+        set_tests_properties(wav_audio_asset PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    endif()
     add_test(NAME event_director COMMAND event_director_test)
     add_test(NAME trace_log COMMAND trace_log_test)
     add_test(NAME demo_slice COMMAND demo_slice_test)
@@ -160,6 +175,7 @@ if(BUILD_TESTING)
         COMMAND ${CMAKE_COMMAND} -E env SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=dummy RESONANCE_DEMO_HIDDEN=1 RESONANCE_DEMO_AUTOCLOSE=1 $<TARGET_FILE:resonance_demo>
     )
     set_tests_properties(content_load PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(audio_asset_generator PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(region_switch PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(event_director PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(demo_slice PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
