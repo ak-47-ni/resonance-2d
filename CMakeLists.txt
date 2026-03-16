@@ -99,6 +99,13 @@ add_executable(audio_tone_profile_test
     tests/audio/test_audio_tone_profile.cpp
 )
 
+add_executable(audio_backend_controls_test
+    tests/audio/test_audio_backend_controls.cpp
+)
+
+target_link_libraries(audio_backend_controls_test PRIVATE resonance_engine)
+resonance_set_warnings(audio_backend_controls_test)
+
 if(RESONANCE_SDL_TARGET)
 add_executable(wav_audio_asset_test
     tests/audio/test_wav_audio_asset.cpp
@@ -232,6 +239,7 @@ if(BUILD_TESTING)
     add_test(NAME region_switch COMMAND region_switch_test)
     add_test(NAME audio_state COMMAND audio_state_test)
     add_test(NAME audio_tone_profile COMMAND audio_tone_profile_test)
+    add_test(NAME audio_backend_controls COMMAND audio_backend_controls_test)
     add_test(NAME audio_asset_generator COMMAND python3 tests/audio/test_generate_audio_assets.py)
     if(RESONANCE_SDL_TARGET)
         add_test(NAME wav_audio_asset COMMAND wav_audio_asset_test)
@@ -256,6 +264,7 @@ if(BUILD_TESTING)
         COMMAND ${CMAKE_COMMAND} -E env SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=dummy RESONANCE_DEMO_HIDDEN=1 RESONANCE_DEMO_AUTOCLOSE=1 $<TARGET_FILE:resonance_demo>
     )
     set_tests_properties(content_load PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(audio_backend_controls PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(audio_asset_generator PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(region_switch PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(event_director PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})

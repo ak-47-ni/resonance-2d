@@ -19,6 +19,13 @@ public:
     std::vector<resonance::AudioStateSnapshot> snapshots;
 };
 
+bool has_default_audio_controls(const resonance::AudioStateSnapshot& snapshot) {
+    return snapshot.master_volume == 1.0F &&
+        snapshot.bgm_volume == 1.0F &&
+        snapshot.ambient_volume == 1.0F &&
+        snapshot.crossfade_seconds == 1.0F;
+}
+
 }  // namespace
 
 int main() {
@@ -58,7 +65,8 @@ int main() {
         initial.resolved_ambient_tracks == std::vector<std::string>{
             "assets/audio/ambient/wind.wav",
             "assets/audio/ambient/water.wav",
-        };
+        } &&
+        has_default_audio_controls(initial);
 
     const bool overridden_ok = overridden.music_state == "mysterious" &&
         overridden.resolved_bgm_track == "assets/audio/bgm/mysterious.wav" &&
@@ -66,7 +74,8 @@ int main() {
         overridden.ambient_layers == std::vector<std::string>{"rumble"} &&
         overridden.resolved_ambient_tracks == std::vector<std::string>{
             "assets/audio/ambient/rumble.wav",
-        };
+        } &&
+        has_default_audio_controls(overridden);
 
     const bool missing_ok = missing_asset.music_state == "missing_asset" &&
         missing_asset.resolved_bgm_track == "assets/audio/bgm/missing.wav" &&
@@ -74,18 +83,21 @@ int main() {
         missing_asset.ambient_layers == std::vector<std::string>{"dust"} &&
         missing_asset.resolved_ambient_tracks == std::vector<std::string>{
             "assets/audio/ambient/dust.wav",
-        };
+        } &&
+        has_default_audio_controls(missing_asset);
 
     const bool unknown_ok = after_unknown.music_state.empty() &&
         after_unknown.resolved_bgm_track.empty() &&
         after_unknown.fallback_music_state.empty() &&
         after_unknown.ambient_layers.empty() &&
-        after_unknown.resolved_ambient_tracks.empty();
+        after_unknown.resolved_ambient_tracks.empty() &&
+        has_default_audio_controls(after_unknown);
 
     const bool invalid_cue_ok = after_invalid_cue.music_state.empty() &&
         after_invalid_cue.resolved_bgm_track.empty() &&
         after_invalid_cue.fallback_music_state.empty() &&
-        after_invalid_cue.resolved_ambient_tracks.empty();
+        after_invalid_cue.resolved_ambient_tracks.empty() &&
+        has_default_audio_controls(after_invalid_cue);
 
     return (initial_ok && overridden_ok && missing_ok && unknown_ok && invalid_cue_ok) ? 0 : 1;
 }

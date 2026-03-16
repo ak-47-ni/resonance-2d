@@ -23,6 +23,10 @@ namespace {
 constexpr float kBgmGain = 0.82F;
 constexpr std::array<float, 2> kAmbientGains{0.18F, 0.12F};
 
+float clamp_unit(float value) {
+    return std::clamp(value, 0.0F, 1.0F);
+}
+
 class AudioBackendSDL final : public AudioBackend {
 public:
     ~AudioBackendSDL() override {
@@ -37,6 +41,7 @@ public:
     void apply(const AudioStateSnapshot& snapshot) override {
         std::scoped_lock lock(mutex_);
         last_snapshot_ = snapshot;
+        apply_controls_locked(snapshot);
         AudioStateSnapshot fallback_snapshot;
         fallback_snapshot.music_state = snapshot.fallback_music_state;
         fallback_snapshot.ambient_layers = snapshot.ambient_layers;
@@ -47,13 +52,82 @@ public:
 #endif
     }
 
+    std::optional<AudioBackendDebugState> debug_state_for_tests() const override {
+        std::scoped_lock lock(mutex_);
+        AudioBackendDebugState state;
+        state.primary_track = loaded_track_;
+        state.fading_track = fading_track_;
+        state.master_volume = master_volume_;
+        state.bgm_volume = bgm_volume_;
+        state.ambient_volume = ambient_volume_;
+        state.crossfade_seconds = crossfade_active_ ? active_crossfade_duration_seconds_ : crossfade_seconds_;
+        state.crossfade_elapsed_seconds = crossfade_elapsed_seconds_;
+        state.crossfade_active = crossfade_active_;
+        return state;
+    }
+
+    void advance_time_for_tests(float seconds) override {
+        if (seconds <= 0.0F) {
+            return;
+        }
+        std::scoped_lock lock(mutex_);
+        advance_crossfade_locked(seconds);
+    }
+
 private:
+    void apply_controls_locked(const AudioStateSnapshot& snapshot) {
+        master_volume_ = clamp_unit(snapshot.master_volume);
+        bgm_volume_ = clamp_unit(snapshot.bgm_volume);
+        ambient_volume_ = clamp_unit(snapshot.ambient_volume);
+        crossfade_seconds_ = std::max(snapshot.crossfade_seconds, 0.0F);
+    }
+
+    void clear_fading_source_locked() {
+        crossfade_active_ = false;
+        crossfade_elapsed_seconds_ = 0.0F;
+        active_crossfade_duration_seconds_ = 0.0F;
+        fading_track_.clear();
+        fading_asset_.reset();
+        fading_cursor_ = 0;
+    }
+
+    void advance_crossfade_locked(float seconds) {
+        if (!crossfade_active_) {
+            return;
+        }
+        if (active_crossfade_duration_seconds_ <= 0.0F) {
+            clear_fading_source_locked();
+            return;
+        }
+
+        crossfade_elapsed_seconds_ = std::min(
+            crossfade_elapsed_seconds_ + seconds,
+            active_crossfade_duration_seconds_
+        );
+        if (crossfade_elapsed_seconds_ >= active_crossfade_duration_seconds_) {
+            clear_fading_source_locked();
+        }
+    }
+
     void load_primary_asset_if_needed_locked() {
         if (loaded_track_ == last_snapshot_.resolved_bgm_track) {
             return;
         }
 
-        loaded_track_ = last_snapshot_.resolved_bgm_track;
+        const std::string next_track = last_snapshot_.resolved_bgm_track;
+        const bool can_crossfade = crossfade_seconds_ > 0.0F && !loaded_track_.empty() && !next_track.empty();
+        if (can_crossfade) {
+            fading_track_ = loaded_track_;
+            fading_asset_ = std::move(loaded_asset_);
+            fading_cursor_ = asset_cursor_;
+            crossfade_active_ = true;
+            crossfade_elapsed_seconds_ = 0.0F;
+            active_crossfade_duration_seconds_ = crossfade_seconds_;
+        } else {
+            clear_fading_source_locked();
+        }
+
+        loaded_track_ = next_track;
         loaded_asset_.reset();
         asset_cursor_ = 0;
         if (!loaded_track_.empty()) {
@@ -122,8 +196,8 @@ private:
         }
     }
 
-    void fill_tone_samples_locked(std::vector<float>& samples, int sample_count) {
-        if (profile_.master_gain <= 0.0F) {
+    void fill_tone_samples_locked(std::vector<float>& samples, int sample_count, float gain_scale) {
+        if (profile_.master_gain <= 0.0F || gain_scale <= 0.0F) {
             return;
         }
 
@@ -131,8 +205,8 @@ private:
         constexpr float sample_rate = 48000.0F;
 
         for (int index = 0; index < sample_count; ++index) {
-            const float carrier = std::sinf(carrier_phase_) * profile_.master_gain;
-            const float layer = std::sinf(layer_phase_) * profile_.layer_gain;
+            const float carrier = std::sinf(carrier_phase_) * profile_.master_gain * gain_scale;
+            const float layer = std::sinf(layer_phase_) * profile_.layer_gain * gain_scale;
             const float value = carrier + layer;
             const std::size_t sample_index = static_cast<std::size_t>(index) * 2U;
             samples[sample_index] = value;
@@ -150,10 +224,28 @@ private:
     }
 
     void mix_primary_and_ambient_locked(std::vector<float>& samples, int sample_count) {
+        const float primary_gain_scale = master_volume_ * bgm_volume_;
+        const float ambient_gain_scale = master_volume_ * ambient_volume_;
+        float fade_in = 1.0F;
+        float fade_out = 0.0F;
+        if (crossfade_active_ && active_crossfade_duration_seconds_ > 0.0F) {
+            const float progress = std::clamp(
+                crossfade_elapsed_seconds_ / active_crossfade_duration_seconds_,
+                0.0F,
+                1.0F
+            );
+            fade_in = progress;
+            fade_out = 1.0F - progress;
+        }
+
         if (loaded_asset_.has_value() && !loaded_asset_->samples.empty()) {
-            mix_looping_audio_asset(*loaded_asset_, asset_cursor_, kBgmGain, samples);
+            mix_looping_audio_asset(*loaded_asset_, asset_cursor_, kBgmGain * primary_gain_scale * fade_in, samples);
         } else {
-            fill_tone_samples_locked(samples, sample_count);
+            fill_tone_samples_locked(samples, sample_count, primary_gain_scale * fade_in);
+        }
+
+        if (crossfade_active_ && fading_asset_.has_value() && !fading_asset_->samples.empty()) {
+            mix_looping_audio_asset(*fading_asset_, fading_cursor_, kBgmGain * primary_gain_scale * fade_out, samples);
         }
 
         for (std::size_t index = 0; index < ambient_assets_.size(); ++index) {
@@ -161,7 +253,7 @@ private:
             if (!ambient_asset.has_value() || ambient_asset->samples.empty()) {
                 continue;
             }
-            mix_looping_audio_asset(*ambient_asset, ambient_cursors_[index], kAmbientGains[index], samples);
+            mix_looping_audio_asset(*ambient_asset, ambient_cursors_[index], kAmbientGains[index] * ambient_gain_scale, samples);
         }
 
         for (auto& sample : samples) {
@@ -182,16 +274,27 @@ private:
 
         std::vector<float> samples(static_cast<std::size_t>(sample_count) * 2U, 0.0F);
         mix_primary_and_ambient_locked(samples, sample_count);
+        advance_crossfade_locked(static_cast<float>(sample_count) / 48000.0F);
         SDL_PutAudioStreamData(stream, samples.data(), static_cast<int>(samples.size() * sizeof(float)));
     }
 #endif
 
-    std::mutex mutex_;
+    mutable std::mutex mutex_;
     AudioStateSnapshot last_snapshot_;
     AudioToneProfile profile_;
     std::string loaded_track_;
     std::optional<WavAudioAsset> loaded_asset_;
     std::size_t asset_cursor_ = 0;
+    std::string fading_track_;
+    std::optional<WavAudioAsset> fading_asset_;
+    std::size_t fading_cursor_ = 0;
+    float master_volume_ = 1.0F;
+    float bgm_volume_ = 1.0F;
+    float ambient_volume_ = 1.0F;
+    float crossfade_seconds_ = 1.0F;
+    float active_crossfade_duration_seconds_ = 0.0F;
+    float crossfade_elapsed_seconds_ = 0.0F;
+    bool crossfade_active_ = false;
     std::vector<std::string> loaded_ambient_tracks_;
     std::vector<std::optional<WavAudioAsset>> ambient_assets_;
     std::vector<std::size_t> ambient_cursors_;
