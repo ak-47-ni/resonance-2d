@@ -29,6 +29,7 @@ add_library(resonance_engine
     engine/core/FileSystem.cpp
     engine/core/Time.cpp
     engine/world/RegionData.cpp
+    engine/world/StoryAnchorData.cpp
     engine/world/Trigger.cpp
     engine/world/World.cpp
     engine/audio/MusicStateData.cpp
@@ -121,6 +122,13 @@ add_executable(demo_slice_test
 target_link_libraries(demo_slice_test PRIVATE resonance_engine)
 resonance_set_warnings(demo_slice_test)
 
+add_executable(story_anchor_content_test
+    tests/data/test_story_anchor_content.cpp
+)
+
+target_link_libraries(story_anchor_content_test PRIVATE resonance_engine)
+resonance_set_warnings(story_anchor_content_test)
+
 add_executable(demo_runtime_test
     tests/demo/test_demo_runtime.cpp
     game/demo/DemoScene.cpp
@@ -129,6 +137,14 @@ add_executable(demo_runtime_test
 target_link_libraries(demo_runtime_test PRIVATE resonance_engine)
 resonance_set_warnings(demo_runtime_test)
 
+add_executable(demo_event_rotation_test
+    tests/demo/test_demo_event_rotation.cpp
+    game/demo/DemoScene.cpp
+)
+
+target_link_libraries(demo_event_rotation_test PRIVATE resonance_engine)
+resonance_set_warnings(demo_event_rotation_test)
+
 add_executable(demo_visual_state_test
     tests/demo/test_demo_visual_state.cpp
     game/demo/DemoScene.cpp
@@ -136,6 +152,62 @@ add_executable(demo_visual_state_test
 
 target_link_libraries(demo_visual_state_test PRIVATE resonance_engine)
 resonance_set_warnings(demo_visual_state_test)
+
+add_executable(story_anchor_interaction_test
+    tests/demo/test_story_anchor_interaction.cpp
+    game/demo/DemoScene.cpp
+)
+
+target_link_libraries(story_anchor_interaction_test PRIVATE resonance_engine)
+resonance_set_warnings(story_anchor_interaction_test)
+
+add_executable(story_anchor_visuals_test
+    tests/demo/test_story_anchor_visuals.cpp
+    game/demo/DemoScene.cpp
+)
+
+target_link_libraries(story_anchor_visuals_test PRIVATE resonance_engine)
+resonance_set_warnings(story_anchor_visuals_test)
+
+add_executable(memory_journal_test
+    tests/demo/test_memory_journal.cpp
+    game/demo/DemoScene.cpp
+)
+
+target_link_libraries(memory_journal_test PRIVATE resonance_engine)
+resonance_set_warnings(memory_journal_test)
+
+add_executable(journal_overlay_test
+    tests/demo/test_journal_overlay.cpp
+    game/demo/DemoScene.cpp
+)
+
+target_link_libraries(journal_overlay_test PRIVATE resonance_engine)
+resonance_set_warnings(journal_overlay_test)
+
+add_executable(memory_unlock_event_test
+    tests/demo/test_memory_unlock_event.cpp
+    game/demo/DemoScene.cpp
+)
+
+target_link_libraries(memory_unlock_event_test PRIVATE resonance_engine)
+resonance_set_warnings(memory_unlock_event_test)
+
+add_executable(multi_memory_event_unlock_test
+    tests/demo/test_multi_memory_event_unlock.cpp
+    game/demo/DemoScene.cpp
+)
+
+target_link_libraries(multi_memory_event_unlock_test PRIVATE resonance_engine)
+resonance_set_warnings(multi_memory_event_unlock_test)
+
+add_executable(three_stage_memory_chain_test
+    tests/demo/test_three_stage_memory_chain.cpp
+    game/demo/DemoScene.cpp
+)
+
+target_link_libraries(three_stage_memory_chain_test PRIVATE resonance_engine)
+resonance_set_warnings(three_stage_memory_chain_test)
 
 add_executable(overlay_panel_test
     tests/debug/test_overlay_panel.cpp
@@ -153,8 +225,17 @@ if(BUILD_TESTING)
     add_test(NAME event_director COMMAND event_director_test)
     add_test(NAME trace_log COMMAND trace_log_test)
     add_test(NAME demo_slice COMMAND demo_slice_test)
+    add_test(NAME story_anchor_content COMMAND story_anchor_content_test)
     add_test(NAME demo_runtime COMMAND demo_runtime_test)
+    add_test(NAME demo_event_rotation COMMAND demo_event_rotation_test)
     add_test(NAME demo_visual_state COMMAND demo_visual_state_test)
+    add_test(NAME story_anchor_interaction COMMAND story_anchor_interaction_test)
+    add_test(NAME story_anchor_visuals COMMAND story_anchor_visuals_test)
+    add_test(NAME memory_journal COMMAND memory_journal_test)
+    add_test(NAME journal_overlay COMMAND journal_overlay_test)
+    add_test(NAME memory_unlock_event COMMAND memory_unlock_event_test)
+    add_test(NAME multi_memory_event_unlock COMMAND multi_memory_event_unlock_test)
+    add_test(NAME three_stage_memory_chain COMMAND three_stage_memory_chain_test)
     add_test(NAME overlay_panel COMMAND overlay_panel_test)
     add_test(NAME demo_hidden_runtime
         COMMAND ${CMAKE_COMMAND} -E env SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=dummy RESONANCE_DEMO_HIDDEN=1 RESONANCE_DEMO_AUTOCLOSE=1 $<TARGET_FILE:resonance_demo>
@@ -163,7 +244,16 @@ if(BUILD_TESTING)
     set_tests_properties(region_switch PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(event_director PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(demo_slice PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(story_anchor_content PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(demo_runtime PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(demo_event_rotation PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(demo_visual_state PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(story_anchor_interaction PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(story_anchor_visuals PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(memory_journal PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(journal_overlay PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(memory_unlock_event PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(multi_memory_event_unlock PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(three_stage_memory_chain PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(demo_hidden_runtime PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()

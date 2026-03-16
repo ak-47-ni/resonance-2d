@@ -1,0 +1,40 @@
+{
+  "story_anchors": [
+    {
+      "id": "meadow-swing",
+      "region_id": "meadow",
+      "x": 96,
+      "y": 80,
+      "activation_radius": 28,
+      "prompt_text": "Press E to listen",
+      "story_text": "A rusted swing clicks in the wind, like someone trying not to be forgotten."
+    },
+    {
+      "id": "ruins-gate",
+      "region_id": "ruins",
+      "x": 372,
+      "y": 108,
+      "activation_radius": 30,
+      "prompt_text": "Press E to inspect",
+      "story_text": "The gate is half open, as if the station expected one more train that never arrived."
+    },
+    {
+      "id": "lakeside-reeds",
+      "region_id": "lakeside",
+      "x": 112,
+      "y": 392,
+      "activation_radius": 26,
+      "prompt_text": "Press E to listen",
+      "story_text": "The reeds answer the water with a whisper that sounds almost rehearsed."
+    },
+    {
+      "id": "station-bench",
+      "region_id": "station",
+      "x": 420,
+      "y": 396,
+      "activation_radius": 32,
+      "prompt_text": "Press E to remember",
+      "story_text": "A cold bench keeps the shape of departures better than the people who sat there."
+    }
+  ]
+}

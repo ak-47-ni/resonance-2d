@@ -23,6 +23,13 @@ int read_required_int(const nlohmann::json& json, const char* key) {
     return json.at(key).get<int>();
 }
 
+std::vector<std::string> read_string_array(const nlohmann::json& json, const char* key) {
+    if (!json.contains(key)) {
+        return {};
+    }
+    return json.at(key).get<std::vector<std::string>>();
+}
+
 }  // namespace
 
 std::vector<EventData> load_events(const std::filesystem::path& path) {
@@ -38,6 +45,7 @@ std::vector<EventData> load_events(const std::filesystem::path& path) {
         event.region_id = read_required_string(item, "region_id");
         event.requested_music_state = read_required_string(item, "requested_music_state");
         event.weight = read_required_int(item, "weight");
+        event.required_world_tags = read_string_array(item, "required_world_tags");
         events.push_back(std::move(event));
     }
     return events;
@@ -48,6 +56,7 @@ DemoContentBundle load_demo_content(const std::filesystem::path& root_path) {
     bundle.regions = load_regions(root_path / "regions" / "regions.json");
     bundle.music_states = load_music_states(root_path / "music" / "music_states.json");
     bundle.events = load_events(root_path / "events" / "events.json");
+    bundle.story_anchors = load_story_anchors(root_path / "story" / "story_anchors.json");
     return bundle;
 }
 

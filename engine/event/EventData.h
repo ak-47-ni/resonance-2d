@@ -2,6 +2,7 @@
 
 #include "engine/audio/MusicStateData.h"
 #include "engine/world/RegionData.h"
+#include "engine/world/StoryAnchorData.h"
 
 #include <filesystem>
 #include <string>
@@ -14,12 +15,14 @@ struct EventData {
     std::string region_id;
     std::string requested_music_state;
     int weight = 0;
+    std::vector<std::string> required_world_tags;
 };
 
 struct DemoContentBundle {
     std::vector<RegionData> regions;
     std::vector<MusicStateData> music_states;
     std::vector<EventData> events;
+    std::vector<StoryAnchorData> story_anchors;
 };
 
 std::vector<EventData> load_events(const std::filesystem::path& path);
