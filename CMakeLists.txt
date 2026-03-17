@@ -28,6 +28,7 @@ add_library(resonance_engine
     engine/core/Application.cpp
     engine/core/FileSystem.cpp
     engine/core/Time.cpp
+    engine/editor/EditorDocument.cpp
     engine/world/RegionData.cpp
     engine/world/StoryAnchorData.cpp
     engine/world/Trigger.cpp
