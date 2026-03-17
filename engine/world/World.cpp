@@ -25,6 +25,10 @@ std::size_t World::region_count() const {
     return regions_.size();
 }
 
+std::vector<RegionData>& World::regions() {
+    return regions_;
+}
+
 const std::vector<RegionData>& World::regions() const {
     return regions_;
 }

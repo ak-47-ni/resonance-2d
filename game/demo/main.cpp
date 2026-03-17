@@ -32,6 +32,21 @@ void draw_story_anchor_markers(SDL_Renderer* renderer, const resonance::DemoScen
         }
         SDL_RenderFillRect(renderer, &outer);
 
+        if (visual.is_selected) {
+            SDL_FRect selection_radius{
+                visual.position.x - visual.activation_radius,
+                visual.position.y - visual.activation_radius,
+                visual.activation_radius * 2.0F,
+                visual.activation_radius * 2.0F,
+            };
+            SDL_SetRenderDrawColor(renderer, 255, 120, 220, 200);
+            SDL_RenderRect(renderer, &selection_radius);
+
+            SDL_FRect selection{visual.position.x - 8.0F, visual.position.y - 8.0F, 16.0F, 16.0F};
+            SDL_SetRenderDrawColor(renderer, 255, 120, 220, 255);
+            SDL_RenderRect(renderer, &selection);
+        }
+
         if (visual.is_active) {
             SDL_FRect inner{visual.position.x - 2.0F, visual.position.y - 2.0F, 4.0F, 4.0F};
             SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
@@ -77,6 +92,10 @@ void draw_scene(SDL_Renderer* renderer, const resonance::DemoScene& scene) {
 
         if (region.id == scene.current_region_id()) {
             SDL_SetRenderDrawColor(renderer, 255, 240, 160, 255);
+            SDL_RenderRect(renderer, &rect);
+        }
+        if (scene.selected_region_id() == region.id) {
+            SDL_SetRenderDrawColor(renderer, 255, 120, 220, 255);
             SDL_RenderRect(renderer, &rect);
         }
     }
@@ -168,19 +187,27 @@ int main() {
                             break;
                         case SDLK_LEFT:
                         case SDLK_A:
-                            scene.move_player({-12.0F, 0.0F});
+                            if (!scene.editor_mode_active() || !scene.nudge_editor_selection({-4.0F, 0.0F})) {
+                                scene.move_player({-12.0F, 0.0F});
+                            }
                             break;
                         case SDLK_RIGHT:
                         case SDLK_D:
-                            scene.move_player({12.0F, 0.0F});
+                            if (!scene.editor_mode_active() || !scene.nudge_editor_selection({4.0F, 0.0F})) {
+                                scene.move_player({12.0F, 0.0F});
+                            }
                             break;
                         case SDLK_UP:
                         case SDLK_W:
-                            scene.move_player({0.0F, -12.0F});
+                            if (!scene.editor_mode_active() || !scene.nudge_editor_selection({0.0F, -4.0F})) {
+                                scene.move_player({0.0F, -12.0F});
+                            }
                             break;
                         case SDLK_DOWN:
                         case SDLK_S:
-                            scene.move_player({0.0F, 12.0F});
+                            if (!scene.editor_mode_active() || !scene.nudge_editor_selection({0.0F, 4.0F})) {
+                                scene.move_player({0.0F, 12.0F});
+                            }
                             break;
                         case SDLK_E:
                             scene.interact();
@@ -188,8 +215,52 @@ int main() {
                         case SDLK_J:
                             scene.toggle_journal();
                             break;
+                        case SDLK_TAB:
+                            scene.toggle_editor_mode();
+                            break;
+                        case SDLK_F5:
+                            if (scene.editor_mode_active()) {
+                                scene.save_editor_document("assets/data");
+                            }
+                            break;
+                        case SDLK_BACKSPACE:
+                        case SDLK_DELETE:
+                            if (scene.editor_mode_active()) {
+                                scene.clear_editor_selection();
+                            }
+                            break;
+                        case SDLK_LEFTBRACKET:
+                            if (scene.editor_mode_active()) {
+                                scene.adjust_editor_selection_primary(-2.0F);
+                            }
+                            break;
+                        case SDLK_RIGHTBRACKET:
+                            if (scene.editor_mode_active()) {
+                                scene.adjust_editor_selection_primary(2.0F);
+                            }
+                            break;
                         default:
                             break;
+                    }
+                } else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
+                    if (scene.editor_mode_active() && event.button.button == SDL_BUTTON_RIGHT) {
+                        scene.clear_editor_selection();
+                    }
+                    if (scene.editor_mode_active() && event.button.button == SDL_BUTTON_LEFT) {
+                        const resonance::WorldPosition click_position{static_cast<float>(event.button.x), static_cast<float>(event.button.y)};
+                        if (!scene.select_story_anchor_at(click_position)) {
+                            scene.select_region_at(click_position);
+                        }
+                    }
+                } else if (event.type == SDL_EVENT_MOUSE_MOTION) {
+                    if (scene.editor_mode_active() && ((event.motion.state & SDL_BUTTON_LMASK) != 0U)) {
+                        const resonance::WorldPosition drag_delta{static_cast<float>(event.motion.xrel), static_cast<float>(event.motion.yrel)};
+                        scene.nudge_editor_selection(drag_delta);
+                    }
+                } else if (event.type == SDL_EVENT_MOUSE_WHEEL) {
+                    if (scene.editor_mode_active()) {
+                        const float wheel_delta = static_cast<float>(event.wheel.y);
+                        scene.adjust_editor_selection_primary(wheel_delta);
                     }
                 }
             }

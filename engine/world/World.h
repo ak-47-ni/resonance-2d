@@ -16,6 +16,7 @@ public:
     WorldPosition player_position() const;
     std::string current_region_id() const;
     std::size_t region_count() const;
+    std::vector<RegionData>& regions();
     const std::vector<RegionData>& regions() const;
 
 private:

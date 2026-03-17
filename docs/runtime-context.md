@@ -36,6 +36,11 @@ Avoid new `engine/audio/*` edits until the board explicitly hands them back.
 - journal view mirroring chain/unlock hints
 - overlay/summary exposure of nearby and active anchor ids
 - hidden scripted memory-chain route via `RESONANCE_DEMO_ROUTE=memory_chain`
+- editor mode toggle inside `resonance_demo` via `Tab`
+- editor story-anchor selection, inspector bridge, drag, radius adjustment, and region selection shell
+- selected regions can now be dragged and resized in edit mode, then saved back to JSON
+- editor JSON writeback helper integrated from `engine/editor/EditorDocument.*`
+- editor save trigger available in demo via `F5` while edit mode is active
 
 ## Key Commands
 
@@ -59,6 +64,19 @@ Expected route output includes:
 - `RouteStep=station-stage-three`
 - final event `terminal_refrain`
 
+## Editor Mode Snapshot
+
+- `Tab` toggles `Play` / `Edit`
+- left click selects a nearby story anchor in edit mode, otherwise falls back to region selection
+- drag with left mouse held moves the selected anchor
+- mouse wheel adjusts the selected anchor radius, or resizes the selected region when no anchor is selected
+- arrow keys / `WASD` now nudge the current selection in edit mode before falling back to player movement
+- `[` and `]` now provide keyboard-based size editing for the current selection
+- `Backspace` / `Delete` and right click now clear the current editor selection
+- `F5` saves current editable region/story-anchor state back to JSON data files
+- overlay now exposes `Editor Controls`, `Editor Selection`, `Selected Region`, `Selected Anchor`, `Selected Position`, `Selected Radius`, inspector lines, explicit `Editor Dirty`, and `Editor Save` status
+- debug summary now exposes `SelectedAnchor`, `SelectedPos`, and `SelectedRadius`
+
 ## Current Important Files
 
 - route helper: `game/demo/DebugRoute.h`
@@ -67,8 +85,13 @@ Expected route output includes:
 - runtime summary: `game/demo/DemoScene.cpp`
 - long-session coordination: `.git/local/task-board.md`
 
+## Verification Snapshot
+
+- full `ctest --output-on-failure` now passes with editor-mode slices included
+- asset validation via `tools/validate_assets.py` passes
+
 ## Suggested Next Steps
 
-1. journal context polish (`Region:` lines, maybe later friendlier names)
-2. branch handoff prep once Terminal B audio backend work is ready
+1. add inspector hotkey editing for selected content
+2. surface more explicit save/dirty feedback once inspector editing begins
 3. after merge, reopen from latest `main` on a fresh branch/worktree

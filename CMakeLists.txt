@@ -41,6 +41,7 @@ add_library(resonance_engine
     engine/event/EventDirector.cpp
     engine/debug/TraceLog.cpp
     engine/debug/DebugOverlay.cpp
+    engine/editor/EditorDocument.cpp
 )
 
 target_include_directories(resonance_engine
@@ -249,6 +250,21 @@ add_executable(overlay_panel_test
 target_link_libraries(overlay_panel_test PRIVATE resonance_engine)
 resonance_set_warnings(overlay_panel_test)
 
+add_executable(editor_document_test
+    tests/editor/test_editor_document.cpp
+)
+
+target_link_libraries(editor_document_test PRIVATE resonance_engine)
+resonance_set_warnings(editor_document_test)
+
+add_executable(demo_editor_save_test
+    tests/demo/test_demo_editor_save.cpp
+    game/demo/DemoScene.cpp
+)
+
+target_link_libraries(demo_editor_save_test PRIVATE resonance_engine)
+resonance_set_warnings(demo_editor_save_test)
+
 if(BUILD_TESTING)
     add_test(NAME startup_smoke COMMAND startup_smoke_test)
     add_test(NAME content_load COMMAND content_load_test)
@@ -278,6 +294,8 @@ if(BUILD_TESTING)
     add_test(NAME multi_memory_event_unlock COMMAND multi_memory_event_unlock_test)
     add_test(NAME three_stage_memory_chain COMMAND three_stage_memory_chain_test)
     add_test(NAME overlay_panel COMMAND overlay_panel_test)
+    add_test(NAME editor_document COMMAND editor_document_test)
+    add_test(NAME demo_editor_save COMMAND demo_editor_save_test)
     add_test(NAME demo_hidden_runtime
         COMMAND ${CMAKE_COMMAND} -E env SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=dummy RESONANCE_DEMO_HIDDEN=1 RESONANCE_DEMO_AUTOCLOSE=1 $<TARGET_FILE:resonance_demo>
     )
@@ -300,5 +318,7 @@ if(BUILD_TESTING)
     set_tests_properties(memory_unlock_event PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(multi_memory_event_unlock PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(three_stage_memory_chain PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(editor_document PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(demo_editor_save PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(demo_hidden_runtime PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()
