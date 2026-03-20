@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+from __future__ import annotations
+
 import json
 import sys
 from pathlib import Path
@@ -81,8 +83,22 @@ def require_unit_float_mapping(item: dict, item_type: str, key: str, required_ke
             raise SystemExit(f"{item_type} '{item.get('id', '<unknown>')}' must keep '{key}.{child_key}' within [0.0, 1.0]")
 
 
-def main(argv: list[str]) -> int:
-    root = resolve_data_root(argv)
+def require_positive_integer(item: dict, item_type: str, key: str) -> None:
+    value = item.get(key)
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise SystemExit(f"{item_type} '{item.get('id', '<unknown>')}' must define positive integer '{key}'")
+
+
+def require_unique_ids(items: list[dict], item_type: str) -> None:
+    seen_ids: set[str] = set()
+    for item in items:
+        item_id = item["id"]
+        if item_id in seen_ids:
+            raise SystemExit(f"Duplicate {item_type} id: {item_id}")
+        seen_ids.add(item_id)
+
+
+def validate_data_root(root: Path) -> None:
     assets_root = root.parent
     regions_path = root / "regions" / "regions.json"
     music_path = root / "music" / "music_states.json"
@@ -98,15 +114,28 @@ def main(argv: list[str]) -> int:
     events = load_json(events_path)["events"]
     story_anchors = load_json(story_path)["story_anchors"]
 
+    for region in regions:
+        require_non_empty_string(region, "Region", "id")
+        require_positive_bounds(region)
+    require_unique_ids(regions, "Region")
+
+    for music_state in music_states:
+        require_non_empty_string(music_state, "Music state", "id")
+    require_unique_ids(music_states, "Music state")
+
     region_ids = {item["id"] for item in regions}
     music_state_ids = {item["id"] for item in music_states}
 
     for region in regions:
-        require_positive_bounds(region)
         if region["default_music_state"] not in music_state_ids:
             raise SystemExit(
                 f"Region '{region['id']}' references missing music state '{region['default_music_state']}'"
             )
+
+    for event in events:
+        require_non_empty_string(event, "Event", "id")
+        require_positive_integer(event, "Event", "weight")
+    require_unique_ids(events, "Event")
 
     for event in events:
         if event["region_id"] not in region_ids:
@@ -121,10 +150,14 @@ def main(argv: list[str]) -> int:
         require_unit_float_mapping(event, "Event", "mix_profile", ["event_duck", "ambient_boost"])
 
     for anchor in story_anchors:
+        require_non_empty_string(anchor, "Story anchor", "id")
         require_non_empty_string(anchor, "Story anchor", "region_id")
         require_non_empty_string(anchor, "Story anchor", "prompt_text")
         require_non_empty_string(anchor, "Story anchor", "story_text")
         require_positive_radius(anchor)
+    require_unique_ids(story_anchors, "Story anchor")
+
+    for anchor in story_anchors:
         if anchor["region_id"] not in region_ids:
             raise SystemExit(
                 f"Story anchor '{anchor['id']}' references missing region '{anchor['region_id']}'"
@@ -132,6 +165,10 @@ def main(argv: list[str]) -> int:
 
     require_wav_audio_assets(music_states, assets_root)
 
+
+def main(argv: list[str]) -> int:
+    root = resolve_data_root(argv)
+    validate_data_root(root)
     print("Asset validation passed")
     return 0
 
