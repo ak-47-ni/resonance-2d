@@ -1,6 +1,7 @@
 #include "game/demo/DemoScene.h"
 
 #include "engine/editor/EditorDocument.h"
+#include "game/demo/WorldWorkspaceLayout.h"
 
 #include <algorithm>
 #include <cmath>
@@ -23,6 +24,8 @@ constexpr std::string_view kStageTwoStationChainEvent = "platform_convergence";
 constexpr std::string_view kStageThreeStationChainEvent = "terminal_refrain";
 constexpr float kEditorSelectionRadius = 14.0F;
 constexpr float kMinimumEditorAnchorRadius = 4.0F;
+constexpr float kEditorViewportFocusPadding = 48.0F;
+constexpr float kEditorViewportMinimumFocusSize = 120.0F;
 
 }  // namespace
 
@@ -167,6 +170,26 @@ void DemoScene::update() {
     editor_overlay_lines.push_back(std::string{"Mode: "} + (editor_mode_ ? "Edit" : "Play"));
 
     if (editor_mode_) {
+        editor_overlay_lines.push_back("Workspace: " + editor_workspace_id_);
+        editor_overlay_lines.push_back("Workspace Tabs: World | Anchors | Events | Audio");
+        editor_overlay_lines.push_back(std::string{"Workspace View: "} + (editor_workspace_id_ == "anchor_workspace" ? "Anchor Canvas" : "World Canvas"));
+        {
+            std::ostringstream viewport_zoom_line;
+            viewport_zoom_line << std::fixed << std::setprecision(2) << "Viewport Zoom: " << editor_viewport_zoom_ << "x";
+            std::ostringstream viewport_origin_line;
+            viewport_origin_line << std::fixed << std::setprecision(1)
+                                 << "Viewport Origin: " << editor_viewport_origin_.x << ", " << editor_viewport_origin_.y;
+            editor_overlay_lines.push_back(viewport_zoom_line.str());
+            editor_overlay_lines.push_back(viewport_origin_line.str());
+            editor_overlay_lines.push_back(std::string{"Viewport Pan: "} + (editor_viewport_pan_active_ ? "active" : "idle"));
+        }
+        if (editor_workspace_id_ == "anchor_workspace") {
+            editor_overlay_lines.push_back("Workspace Cards: Anchor Overview | Anchor Audio | Anchor Status");
+            editor_overlay_lines.push_back("Workspace Inspector: anchor_selection | runtime_context | session_status");
+        } else {
+            editor_overlay_lines.push_back("Workspace Cards: Region Summary | Audio Defaults | Canvas Tools");
+            editor_overlay_lines.push_back("Workspace Inspector: region_identity | audio_defaults | runtime_telemetry");
+        }
         EditorSelection selection;
         if (!selected_story_anchor_id_.empty()) {
             selection = EditorSelection{EditorSelectionKind::story_anchor, selected_story_anchor_id_};
@@ -174,9 +197,19 @@ void DemoScene::update() {
             selection = EditorSelection{EditorSelectionKind::region, selected_region_id_};
         }
 
-        editor_overlay_lines.push_back("Editor Controls: Click select | Drag/WASD move | Wheel/[ ] size | F5 save | Backspace clear");
+        editor_overlay_lines.push_back("Editor Controls: Click select | Drag/WASD move | Wheel/[ ] size | Shift+F frame | 0 zoom | F5 save");
+        editor_overlay_lines.push_back(std::string{"Drag State: "} + (editor_drag_active_ ? "preview" : "idle"));
+        if (!hovered_gizmo_id_.empty()) {
+            editor_overlay_lines.push_back("Hovered Gizmo: " + hovered_gizmo_id_);
+        }
         if (selected_region_id_.empty() && selected_story_anchor_id_.empty()) {
             editor_overlay_lines.push_back("Editor Selection: none");
+        }
+        if (!hovered_region_id_.empty()) {
+            editor_overlay_lines.push_back("Hovered Region: " + hovered_region_id_);
+        }
+        if (!hovered_story_anchor_id_.empty()) {
+            editor_overlay_lines.push_back("Hovered Anchor: " + hovered_story_anchor_id_);
         }
         if (!selected_region_id_.empty()) {
             editor_overlay_lines.push_back("Selected Region: " + selected_region_id_);
@@ -253,6 +286,12 @@ bool DemoScene::select_region_at(WorldPosition position) {
         return false;
     }
 
+    if (hovered_gizmo_id_ == "region_resize" && !selected_region_id_.empty()) {
+        hovered_region_id_ = selected_region_id_;
+        hovered_story_anchor_id_.clear();
+        return true;
+    }
+
     for (const auto& region : regions()) {
         const bool within_x = position.x >= region.bounds.x && position.x < (region.bounds.x + region.bounds.width);
         const bool within_y = position.y >= region.bounds.y && position.y < (region.bounds.y + region.bounds.height);
@@ -262,6 +301,10 @@ bool DemoScene::select_region_at(WorldPosition position) {
 
         selected_region_id_ = region.id;
         selected_story_anchor_id_.clear();
+        hovered_region_id_ = region.id;
+        hovered_story_anchor_id_.clear();
+        hovered_gizmo_id_.clear();
+        active_gizmo_id_.clear();
         return true;
     }
 
@@ -269,9 +312,271 @@ bool DemoScene::select_region_at(WorldPosition position) {
     return false;
 }
 
+bool DemoScene::clear_editor_hover() {
+    const bool changed = !hovered_region_id_.empty() || !hovered_story_anchor_id_.empty() || !hovered_gizmo_id_.empty() ||
+        (!editor_drag_active_ && !active_gizmo_id_.empty());
+    hovered_region_id_.clear();
+    hovered_story_anchor_id_.clear();
+    hovered_gizmo_id_.clear();
+    if (!editor_drag_active_) {
+        active_gizmo_id_.clear();
+    }
+    return changed;
+}
+
+bool DemoScene::set_editor_hover(WorldPosition position) {
+    if (!editor_mode_) {
+        clear_editor_hover();
+        return false;
+    }
+
+    std::string next_hovered_anchor_id;
+    std::string next_hovered_region_id;
+    std::string next_hovered_gizmo_id;
+    float best_distance_squared = 0.0F;
+    const float selection_radius_squared = kEditorSelectionRadius * kEditorSelectionRadius;
+
+    if (!selected_story_anchor_id_.empty()) {
+        if (const auto* selected_anchor = find_story_anchor_by_id(selected_story_anchor_id_); selected_anchor != nullptr) {
+            const float handle_dx = position.x - (selected_anchor->position.x + selected_anchor->activation_radius);
+            const float handle_dy = position.y - selected_anchor->position.y;
+            const float handle_distance_squared = (handle_dx * handle_dx) + (handle_dy * handle_dy);
+            if (handle_distance_squared <= selection_radius_squared) {
+                next_hovered_anchor_id = selected_anchor->id;
+                next_hovered_gizmo_id = "anchor_radius";
+            }
+        }
+    }
+
+    if (next_hovered_gizmo_id.empty() && !selected_region_id_.empty()) {
+        for (const auto& region : regions()) {
+            if (region.id != selected_region_id_) {
+                continue;
+            }
+            const float handle_dx = position.x - (region.bounds.x + region.bounds.width);
+            const float handle_dy = position.y - (region.bounds.y + region.bounds.height);
+            if (std::fabs(handle_dx) <= 10.0F && std::fabs(handle_dy) <= 10.0F) {
+                next_hovered_region_id = region.id;
+                next_hovered_gizmo_id = "region_resize";
+            }
+            break;
+        }
+    }
+
+    if (next_hovered_gizmo_id.empty()) {
+        for (const auto& anchor : story_anchors_) {
+            const float dx = position.x - anchor.position.x;
+            const float dy = position.y - anchor.position.y;
+            const float distance_squared = (dx * dx) + (dy * dy);
+            if (distance_squared > selection_radius_squared) {
+                continue;
+            }
+            if (next_hovered_anchor_id.empty() || distance_squared < best_distance_squared) {
+                next_hovered_anchor_id = anchor.id;
+                best_distance_squared = distance_squared;
+            }
+        }
+
+        if (next_hovered_anchor_id.empty()) {
+            for (const auto& region : regions()) {
+                const bool within_x = position.x >= region.bounds.x && position.x < (region.bounds.x + region.bounds.width);
+                const bool within_y = position.y >= region.bounds.y && position.y < (region.bounds.y + region.bounds.height);
+                if (!within_x || !within_y) {
+                    continue;
+                }
+                next_hovered_region_id = region.id;
+                break;
+            }
+        }
+    }
+
+    const bool changed = hovered_story_anchor_id_ != next_hovered_anchor_id ||
+        hovered_region_id_ != next_hovered_region_id ||
+        hovered_gizmo_id_ != next_hovered_gizmo_id;
+    hovered_story_anchor_id_ = std::move(next_hovered_anchor_id);
+    hovered_region_id_ = std::move(next_hovered_region_id);
+    hovered_gizmo_id_ = std::move(next_hovered_gizmo_id);
+    return changed;
+}
+
+void DemoScene::set_editor_drag_active(bool active) {
+    const bool was_drag_active = editor_drag_active_;
+    editor_drag_active_ = editor_mode_ && active && (!selected_region_id_.empty() || !selected_story_anchor_id_.empty());
+    if (editor_drag_active_) {
+        if (!was_drag_active) {
+            active_gizmo_id_ = hovered_gizmo_id_;
+        }
+    } else {
+        active_gizmo_id_.clear();
+        editor_drag_delta_ = WorldPosition{};
+    }
+}
+
+void DemoScene::set_editor_drag_delta(WorldPosition delta) {
+    editor_drag_delta_ = editor_drag_active_ ? delta : WorldPosition{};
+}
+
+bool DemoScene::preview_editor_selection(WorldPosition delta) {
+    if (!editor_mode_ || !editor_drag_active_ || (selected_region_id_.empty() && selected_story_anchor_id_.empty())) {
+        return false;
+    }
+
+    editor_drag_delta_.x += delta.x;
+    editor_drag_delta_.y += delta.y;
+    return true;
+}
+
+bool DemoScene::commit_editor_drag() {
+    if (!editor_mode_ || !editor_drag_active_) {
+        return false;
+    }
+
+    const auto preview_delta = editor_drag_delta_;
+    const auto preview_gizmo_id = active_gizmo_id_;
+    const bool has_preview_delta = preview_delta.x != 0.0F || preview_delta.y != 0.0F;
+    editor_drag_active_ = false;
+    editor_drag_delta_ = WorldPosition{};
+    active_gizmo_id_.clear();
+
+    if (!has_preview_delta) {
+        return false;
+    }
+    if (preview_gizmo_id == "anchor_radius") {
+        return adjust_selected_story_anchor_radius(preview_delta.x);
+    }
+    if (preview_gizmo_id == "region_resize") {
+        return resize_selected_region(preview_delta.x, preview_delta.y);
+    }
+    if (!selected_story_anchor_id_.empty()) {
+        return move_selected_story_anchor(preview_delta);
+    }
+    if (!selected_region_id_.empty()) {
+        return move_selected_region(preview_delta);
+    }
+    return false;
+}
+
+bool DemoScene::cancel_editor_drag() {
+    const bool had_drag = editor_drag_active_;
+    editor_drag_active_ = false;
+    editor_drag_delta_ = WorldPosition{};
+    active_gizmo_id_.clear();
+    return had_drag;
+}
+
+bool DemoScene::pan_editor_viewport(WorldPosition delta) {
+    if (!editor_mode_ || (delta.x == 0.0F && delta.y == 0.0F)) {
+        return false;
+    }
+
+    editor_viewport_origin_.x += delta.x;
+    editor_viewport_origin_.y += delta.y;
+    return true;
+}
+
+bool DemoScene::adjust_editor_viewport_zoom(float delta) {
+    if (!editor_mode_ || delta == 0.0F) {
+        return false;
+    }
+
+    const float next_zoom = std::clamp(editor_viewport_zoom_ + delta, 0.5F, 2.5F);
+    if (std::fabs(next_zoom - editor_viewport_zoom_) < 0.0001F) {
+        return false;
+    }
+
+    editor_viewport_zoom_ = next_zoom;
+    return true;
+}
+
+bool DemoScene::reset_editor_viewport() {
+    if (!editor_mode_) {
+        return false;
+    }
+
+    const bool changed = editor_viewport_origin_.x != 0.0F || editor_viewport_origin_.y != 0.0F ||
+        std::fabs(editor_viewport_zoom_ - 1.0F) > 0.0001F || editor_viewport_pan_active_;
+    editor_viewport_origin_ = WorldPosition{};
+    editor_viewport_zoom_ = 1.0F;
+    editor_viewport_pan_active_ = false;
+    return changed;
+}
+
+bool DemoScene::reset_editor_viewport_zoom() {
+    if (!editor_mode_ || std::fabs(editor_viewport_zoom_ - 1.0F) < 0.0001F) {
+        return false;
+    }
+
+    editor_viewport_zoom_ = 1.0F;
+    return true;
+}
+
+bool DemoScene::focus_editor_viewport_on_selection() {
+    if (!editor_mode_) {
+        return false;
+    }
+
+    WorldPosition selection_center{};
+    float target_width = 0.0F;
+    float target_height = 0.0F;
+
+    if (!selected_story_anchor_id_.empty()) {
+        const auto* selected_anchor = find_story_anchor_by_id(selected_story_anchor_id_);
+        if (selected_anchor == nullptr) {
+            return false;
+        }
+        selection_center = selected_anchor->position;
+        const float focus_diameter = std::max(selected_anchor->activation_radius * 2.0F, 0.0F);
+        target_width = std::max(focus_diameter + (kEditorViewportFocusPadding * 2.0F), kEditorViewportMinimumFocusSize);
+        target_height = std::max(focus_diameter + (kEditorViewportFocusPadding * 2.0F), kEditorViewportMinimumFocusSize);
+    } else if (!selected_region_id_.empty()) {
+        const auto match = std::find_if(
+            regions().begin(),
+            regions().end(),
+            [this](const RegionData& region) {
+                return region.id == selected_region_id_;
+            });
+        if (match == regions().end()) {
+            return false;
+        }
+        selection_center = WorldPosition{
+            match->bounds.x + (match->bounds.width * 0.5F),
+            match->bounds.y + (match->bounds.height * 0.5F)};
+        target_width = std::max(match->bounds.width + (kEditorViewportFocusPadding * 2.0F), kEditorViewportMinimumFocusSize);
+        target_height = std::max(match->bounds.height + (kEditorViewportFocusPadding * 2.0F), kEditorViewportMinimumFocusSize);
+    } else {
+        return false;
+    }
+
+    const auto layout = build_world_workspace_layout(kEditorWindowWidth, kEditorWindowHeight);
+    const float next_zoom = std::clamp(
+        std::min(layout.viewport_content.w / target_width, layout.viewport_content.h / target_height),
+        0.5F,
+        2.5F);
+    const WorldPosition next_origin{
+        selection_center.x - (layout.viewport_content.w * 0.5F / next_zoom),
+        selection_center.y - (layout.viewport_content.h * 0.5F / next_zoom)};
+    const bool changed = std::fabs(next_origin.x - editor_viewport_origin_.x) > 0.0001F ||
+        std::fabs(next_origin.y - editor_viewport_origin_.y) > 0.0001F ||
+        std::fabs(next_zoom - editor_viewport_zoom_) > 0.0001F || editor_viewport_pan_active_;
+    editor_viewport_origin_ = next_origin;
+    editor_viewport_zoom_ = next_zoom;
+    editor_viewport_pan_active_ = false;
+    return changed;
+}
+
+void DemoScene::set_editor_viewport_pan_active(bool active) {
+    editor_viewport_pan_active_ = editor_mode_ && active;
+}
+
 bool DemoScene::select_story_anchor_at(WorldPosition position) {
     if (!editor_mode_) {
         return false;
+    }
+
+    if (hovered_gizmo_id_ == "anchor_radius" && !selected_story_anchor_id_.empty()) {
+        hovered_region_id_.clear();
+        hovered_story_anchor_id_ = selected_story_anchor_id_;
+        return true;
     }
 
     const StoryAnchorData* best_match = nullptr;
@@ -299,10 +604,17 @@ bool DemoScene::select_story_anchor_at(WorldPosition position) {
 
     selected_region_id_.clear();
     selected_story_anchor_id_ = best_match->id;
+    hovered_region_id_.clear();
+    hovered_story_anchor_id_ = best_match->id;
+    hovered_gizmo_id_.clear();
+    active_gizmo_id_.clear();
     return true;
 }
 
 bool DemoScene::nudge_editor_selection(WorldPosition delta) {
+    if (editor_drag_active_) {
+        return preview_editor_selection(delta);
+    }
     if (move_selected_story_anchor(delta)) {
         return true;
     }
@@ -310,6 +622,13 @@ bool DemoScene::nudge_editor_selection(WorldPosition delta) {
 }
 
 bool DemoScene::adjust_editor_selection_primary(float delta) {
+    const std::string& gizmo_id = active_gizmo_id_.empty() ? hovered_gizmo_id_ : active_gizmo_id_;
+    if (gizmo_id == "anchor_radius") {
+        return adjust_selected_story_anchor_radius(delta * 2.0F);
+    }
+    if (gizmo_id == "region_resize") {
+        return resize_selected_region(delta * 8.0F, delta * 4.0F);
+    }
     if (adjust_selected_story_anchor_radius(delta * 2.0F)) {
         return true;
     }
@@ -324,6 +643,10 @@ bool DemoScene::clear_editor_selection() {
     const bool had_selection = !selected_region_id_.empty() || !selected_story_anchor_id_.empty();
     selected_region_id_.clear();
     selected_story_anchor_id_.clear();
+    hovered_gizmo_id_.clear();
+    active_gizmo_id_.clear();
+    editor_drag_active_ = false;
+    editor_drag_delta_ = WorldPosition{};
     return had_selection;
 }
 
@@ -432,6 +755,20 @@ bool DemoScene::save_editor_document(const std::filesystem::path& data_root) {
     }
 }
 
+bool DemoScene::set_editor_workspace(std::string workspace_id) {
+    if (!editor_mode_) {
+        return false;
+    }
+    if (workspace_id != "world_workspace" && workspace_id != "anchor_workspace") {
+        return false;
+    }
+    if (editor_workspace_id_ == workspace_id) {
+        return true;
+    }
+    editor_workspace_id_ = std::move(workspace_id);
+    return true;
+}
+
 void DemoScene::toggle_journal() {
     journal_is_open_ = !journal_is_open_;
 }
@@ -441,9 +778,29 @@ void DemoScene::toggle_editor_mode() {
     if (editor_mode_) {
         editor_dirty_ = false;
         editor_save_status_.clear();
+        editor_workspace_id_ = "world_workspace";
+        hovered_region_id_.clear();
+        hovered_story_anchor_id_.clear();
+        hovered_gizmo_id_.clear();
+        active_gizmo_id_.clear();
+        editor_drag_active_ = false;
+        editor_drag_delta_ = WorldPosition{};
+        editor_viewport_origin_ = WorldPosition{};
+        editor_viewport_zoom_ = 1.0F;
+        editor_viewport_pan_active_ = false;
     } else {
         selected_region_id_.clear();
         selected_story_anchor_id_.clear();
+        hovered_region_id_.clear();
+        hovered_story_anchor_id_.clear();
+        hovered_gizmo_id_.clear();
+        active_gizmo_id_.clear();
+        editor_drag_active_ = false;
+        editor_drag_delta_ = WorldPosition{};
+        editor_workspace_id_ = "world_workspace";
+        editor_viewport_origin_ = WorldPosition{};
+        editor_viewport_zoom_ = 1.0F;
+        editor_viewport_pan_active_ = false;
     }
 }
 
@@ -495,12 +852,52 @@ std::string DemoScene::selected_region_id() const {
     return selected_region_id_;
 }
 
+std::string DemoScene::hovered_region_id() const {
+    return hovered_region_id_;
+}
+
+std::string DemoScene::hovered_story_anchor_id() const {
+    return hovered_story_anchor_id_;
+}
+
+std::string DemoScene::hovered_gizmo_id() const {
+    return hovered_gizmo_id_;
+}
+
+std::string DemoScene::active_gizmo_id() const {
+    return active_gizmo_id_;
+}
+
+std::string DemoScene::editor_workspace_id() const {
+    return editor_workspace_id_;
+}
+
 bool DemoScene::journal_is_open() const {
     return journal_is_open_;
 }
 
 bool DemoScene::editor_mode_active() const {
     return editor_mode_;
+}
+
+bool DemoScene::editor_drag_active() const {
+    return editor_drag_active_;
+}
+
+WorldPosition DemoScene::editor_drag_delta() const {
+    return editor_drag_delta_;
+}
+
+WorldPosition DemoScene::editor_viewport_origin() const {
+    return editor_viewport_origin_;
+}
+
+float DemoScene::editor_viewport_zoom() const {
+    return editor_viewport_zoom_;
+}
+
+bool DemoScene::editor_viewport_pan_active() const {
+    return editor_viewport_pan_active_;
 }
 
 std::vector<StoryAnchorVisual> DemoScene::story_anchor_visuals() const {
@@ -515,6 +912,7 @@ std::vector<StoryAnchorVisual> DemoScene::story_anchor_visuals() const {
             anchor.id == nearby_story_anchor_id_,
             anchor.id == active_story_anchor_id_,
             anchor.id == selected_story_anchor_id_,
+            anchor.id == hovered_story_anchor_id_,
         });
     }
 
@@ -527,6 +925,41 @@ std::vector<MemoryJournalEntry> DemoScene::memory_journal_entries() const {
 
 std::vector<std::string> DemoScene::overlay_lines() const {
     return overlay_lines_;
+}
+
+WorldWorkspaceState DemoScene::world_workspace_state() const {
+    EditorSelection selection;
+    if (!selected_story_anchor_id_.empty()) {
+        selection = EditorSelection{EditorSelectionKind::story_anchor, selected_story_anchor_id_};
+    } else if (!selected_region_id_.empty()) {
+        selection = EditorSelection{EditorSelectionKind::region, selected_region_id_};
+    }
+
+    return build_world_workspace_state(
+        EditorDocument{regions(), story_anchors_},
+        selection,
+        WorldWorkspaceRuntimeSummary{
+            editor_workspace_id_,
+            editor_mode_ ? "Edit" : "Play",
+            current_region_id(),
+            current_music_state(),
+            current_event_id(),
+            current_story_focus(),
+            current_event_emphasis(),
+            editor_dirty_,
+            editor_save_status_,
+            hovered_region_id_,
+            hovered_story_anchor_id_,
+            editor_drag_active_,
+            hovered_gizmo_id_,
+            editor_drag_delta_.x,
+            editor_drag_delta_.y,
+            active_gizmo_id_,
+            editor_viewport_origin_.x,
+            editor_viewport_origin_.y,
+            editor_viewport_zoom_,
+            editor_viewport_pan_active_,
+        });
 }
 
 std::string DemoScene::debug_summary() const {

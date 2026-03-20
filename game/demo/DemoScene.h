@@ -6,6 +6,7 @@
 #include "engine/debug/TraceLog.h"
 #include "engine/event/EventData.h"
 #include "engine/event/EventDirector.h"
+#include "engine/editor/WorldWorkspaceState.h"
 #include "engine/world/World.h"
 
 #include <filesystem>
@@ -21,6 +22,7 @@ struct StoryAnchorVisual {
     bool is_nearby = false;
     bool is_active = false;
     bool is_selected = false;
+    bool is_hovered = false;
 };
 
 class DemoScene {
@@ -34,6 +36,19 @@ public:
     void interact();
     bool select_region_at(WorldPosition position);
     bool select_story_anchor_at(WorldPosition position);
+    bool set_editor_hover(WorldPosition position);
+    bool clear_editor_hover();
+    void set_editor_drag_active(bool active);
+    void set_editor_drag_delta(WorldPosition delta);
+    bool preview_editor_selection(WorldPosition delta);
+    bool commit_editor_drag();
+    bool cancel_editor_drag();
+    bool pan_editor_viewport(WorldPosition delta);
+    bool adjust_editor_viewport_zoom(float delta);
+    bool reset_editor_viewport();
+    bool reset_editor_viewport_zoom();
+    bool focus_editor_viewport_on_selection();
+    void set_editor_viewport_pan_active(bool active);
     bool nudge_editor_selection(WorldPosition delta);
     bool adjust_editor_selection_primary(float delta);
     bool clear_editor_selection();
@@ -42,6 +57,7 @@ public:
     bool move_selected_story_anchor(WorldPosition delta);
     bool adjust_selected_story_anchor_radius(float delta);
     bool save_editor_document(const std::filesystem::path& data_root);
+    bool set_editor_workspace(std::string workspace_id);
     void toggle_journal();
     void toggle_editor_mode();
 
@@ -57,11 +73,22 @@ public:
     std::string current_interaction_prompt() const;
     std::string active_story_text() const;
     std::string selected_region_id() const;
+    std::string hovered_region_id() const;
+    std::string hovered_story_anchor_id() const;
+    std::string hovered_gizmo_id() const;
+    std::string active_gizmo_id() const;
+    std::string editor_workspace_id() const;
     bool journal_is_open() const;
     bool editor_mode_active() const;
+    bool editor_drag_active() const;
+    WorldPosition editor_drag_delta() const;
+    WorldPosition editor_viewport_origin() const;
+    float editor_viewport_zoom() const;
+    bool editor_viewport_pan_active() const;
     std::vector<StoryAnchorVisual> story_anchor_visuals() const;
     std::vector<MemoryJournalEntry> memory_journal_entries() const;
     std::vector<std::string> overlay_lines() const;
+    WorldWorkspaceState world_workspace_state() const;
     std::string debug_summary() const;
     WorldPosition player_position() const;
     std::size_t region_count() const;
@@ -97,13 +124,23 @@ private:
     std::string active_story_anchor_id_;
     std::string selected_region_id_;
     std::string selected_story_anchor_id_;
+    std::string hovered_region_id_;
+    std::string hovered_story_anchor_id_;
+    std::string hovered_gizmo_id_;
+    std::string active_gizmo_id_;
     std::string active_story_text_;
     float current_story_focus_ = 0.0F;
     float current_event_emphasis_ = 0.0F;
     bool journal_is_open_ = false;
     bool editor_mode_ = false;
+    bool editor_drag_active_ = false;
+    WorldPosition editor_drag_delta_{};
+    WorldPosition editor_viewport_origin_{};
+    float editor_viewport_zoom_ = 1.0F;
+    bool editor_viewport_pan_active_ = false;
     bool editor_dirty_ = false;
     std::string editor_save_status_;
+    std::string editor_workspace_id_ = "world_workspace";
     double seconds_since_last_major_event_ = 120.0;
     std::vector<std::string> overlay_lines_;
 };

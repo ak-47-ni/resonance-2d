@@ -29,6 +29,7 @@ add_library(resonance_engine
     engine/core/FileSystem.cpp
     engine/core/Time.cpp
     engine/editor/EditorDocument.cpp
+    engine/editor/WorldWorkspaceState.cpp
     engine/world/RegionData.cpp
     engine/world/StoryAnchorData.cpp
     engine/world/Trigger.cpp
@@ -258,6 +259,13 @@ add_executable(editor_document_test
 target_link_libraries(editor_document_test PRIVATE resonance_engine)
 resonance_set_warnings(editor_document_test)
 
+add_executable(world_workspace_state_test
+    tests/editor/test_world_workspace_state.cpp
+)
+
+target_link_libraries(world_workspace_state_test PRIVATE resonance_engine)
+resonance_set_warnings(world_workspace_state_test)
+
 add_executable(demo_editor_save_test
     tests/demo/test_demo_editor_save.cpp
     game/demo/DemoScene.cpp
@@ -296,6 +304,7 @@ if(BUILD_TESTING)
     add_test(NAME three_stage_memory_chain COMMAND three_stage_memory_chain_test)
     add_test(NAME overlay_panel COMMAND overlay_panel_test)
     add_test(NAME editor_document COMMAND editor_document_test)
+    add_test(NAME world_workspace_state COMMAND world_workspace_state_test)
     add_test(NAME demo_editor_save COMMAND demo_editor_save_test)
     add_test(NAME demo_hidden_runtime
         COMMAND ${CMAKE_COMMAND} -E env SDL_AUDIODRIVER=dummy SDL_VIDEODRIVER=dummy RESONANCE_DEMO_HIDDEN=1 RESONANCE_DEMO_AUTOCLOSE=1 $<TARGET_FILE:resonance_demo>
@@ -320,6 +329,7 @@ if(BUILD_TESTING)
     set_tests_properties(multi_memory_event_unlock PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(three_stage_memory_chain PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(editor_document PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+    set_tests_properties(world_workspace_state PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(demo_editor_save PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
     set_tests_properties(demo_hidden_runtime PROPERTIES WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 endif()

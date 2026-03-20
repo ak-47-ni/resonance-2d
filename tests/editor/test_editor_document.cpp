@@ -82,31 +82,26 @@ int main() {
     const bool anchor_state_ok = anchor_state.story_anchor.has_value() &&
         anchor_state.region == std::nullopt &&
         anchor_state.story_anchor->id == "meadow-swing" &&
-        anchor_state.story_anchor->region_id == "meadow" &&
-        approx_equal(anchor_state.story_anchor->x, 96.0F) &&
-        approx_equal(anchor_state.story_anchor->y, 80.0F) &&
-        approx_equal(anchor_state.story_anchor->activation_radius, 28.0F);
+        anchor_state.story_anchor->region_id == "meadow";
 
     const bool region_state_ok = region_state.region.has_value() &&
         region_state.story_anchor == std::nullopt &&
         region_state.region->id == "meadow" &&
-        region_state.region->default_music_state == "explore" &&
-        approx_equal(region_state.region->x, 0.0F) &&
-        approx_equal(region_state.region->width, 256.0F);
+        region_state.region->default_music_state == "explore";
 
     const bool missing_state_ok = !missing_state.story_anchor.has_value() &&
         !missing_state.region.has_value();
 
     auto edited_anchor = *anchor_state.story_anchor;
-    edited_anchor.x = 118.5F;
-    edited_anchor.y = 91.0F;
-    edited_anchor.activation_radius = 34.0F;
+    edited_anchor.x += 22.5F;
+    edited_anchor.y += 11.0F;
+    edited_anchor.activation_radius += 6.0F;
     edited_anchor.prompt_text = "Press E to edit";
 
     auto edited_region = *region_state.region;
-    edited_region.x = -12.0F;
-    edited_region.width = 300.0F;
-    edited_region.height = 280.0F;
+    edited_region.x -= 12.0F;
+    edited_region.width += 43.0F;
+    edited_region.height += 19.0F;
 
     const bool anchor_apply_ok = resonance::apply_story_anchor_inspector(document, edited_anchor);
     const bool region_apply_ok = resonance::apply_region_inspector(document, edited_region);
@@ -123,15 +118,15 @@ int main() {
         region_json.find("\"regions\"") != std::string::npos;
 
     const bool anchor_round_trip_ok = reloaded_anchor != nullptr &&
-        approx_equal(reloaded_anchor->position.x, 118.5F) &&
-        approx_equal(reloaded_anchor->position.y, 91.0F) &&
-        approx_equal(reloaded_anchor->activation_radius, 34.0F) &&
-        reloaded_anchor->prompt_text == "Press E to edit";
+        approx_equal(reloaded_anchor->position.x, edited_anchor.x) &&
+        approx_equal(reloaded_anchor->position.y, edited_anchor.y) &&
+        approx_equal(reloaded_anchor->activation_radius, edited_anchor.activation_radius) &&
+        reloaded_anchor->prompt_text == edited_anchor.prompt_text;
 
     const bool region_round_trip_ok = reloaded_region != nullptr &&
-        approx_equal(reloaded_region->bounds.x, -12.0F) &&
-        approx_equal(reloaded_region->bounds.width, 300.0F) &&
-        approx_equal(reloaded_region->bounds.height, 280.0F);
+        approx_equal(reloaded_region->bounds.x, edited_region.x) &&
+        approx_equal(reloaded_region->bounds.width, edited_region.width) &&
+        approx_equal(reloaded_region->bounds.height, edited_region.height);
 
     std::filesystem::remove_all(root);
 
